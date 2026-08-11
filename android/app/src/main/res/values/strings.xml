@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AppGate</string>
+    <string name="accessibility_service_description">Detects when a gated app is opened so AppGate can show its block or message screen.</string>
 </resources>
