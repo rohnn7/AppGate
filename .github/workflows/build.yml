@@ -26,6 +26,9 @@ jobs:
 
       - run: npm ci
 
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
       - name: Decode keystore
         run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/appgate.keystore
 
