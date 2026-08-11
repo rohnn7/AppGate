@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useReducer, useState } from 'react';
+import { AppState, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import NativeAppGate from '../../specs/NativeAppGate';
-import { useGatedApps } from '../hooks/useGatedApps';
 import type { GatedApp } from '../types';
 
 function statusText(app: GatedApp): string {
@@ -17,9 +16,9 @@ function statusText(app: GatedApp): string {
   return `Blocked · ${hours}h ${minutes}m left`;
 }
 
-function Row({ app }: { app: GatedApp }) {
+function Row({ app, onPress }: { app: GatedApp; onPress: () => void }) {
   return (
-    <View style={styles.row}>
+    <Pressable style={styles.row} onPress={onPress}>
       <View style={styles.iconPlaceholder} />
       <View style={styles.rowText}>
         <Text style={styles.appName}>{app.appName}</Text>
@@ -28,7 +27,7 @@ function Row({ app }: { app: GatedApp }) {
       <View style={[styles.badge, app.mode === 'BLOCK' ? styles.badgeBlock : styles.badgeMessage]}>
         <Text style={styles.badgeText}>{app.mode}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -50,63 +49,57 @@ function NativeBridgeStatus() {
   return <Text style={styles.debug}>{status}</Text>;
 }
 
-// Temporary: stands in for the real app picker + add flow (build-order step 4).
-// Proves saveConfig/loadConfig round-trip through a real file.
-function DebugAddButtons({
-  add,
-}: {
-  add: ReturnType<typeof useGatedApps>['add'];
-}) {
-  return (
-    <View style={styles.debugRow}>
-      <Pressable
-        style={styles.debugButton}
-        onPress={() =>
-          add({
-            packageName: 'com.instagram.android',
-            appName: 'Instagram',
-            mode: 'BLOCK',
-            blockUntilMillis: Date.now() + 3 * 60 * 60 * 1000,
-            createdAt: Date.now(),
-          })
-        }>
-        <Text style={styles.debugButtonText}>+ Instagram (BLOCK 3h)</Text>
-      </Pressable>
-      <Pressable
-        style={styles.debugButton}
-        onPress={() =>
-          add({
-            packageName: 'com.application.zomato',
-            appName: 'Zomato',
-            mode: 'MESSAGE',
-            message: 'you have to reduce your weight, get over your taste addiction',
-            createdAt: Date.now(),
-          })
-        }>
-        <Text style={styles.debugButtonText}>+ Zomato (MESSAGE)</Text>
-      </Pressable>
-    </View>
-  );
+// Recomputes "Xh Ym left" text on a 30s interval and on app resume, without a
+// second-accurate countdown — see §9.2.
+function useCountdownTick() {
+  const [, tick] = useReducer(x => x + 1, 0);
+
+  useEffect(() => {
+    const interval = setInterval(tick, 30000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        tick();
+      }
+    });
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, []);
 }
 
-export default function HomeScreen() {
-  const { apps, loaded, add } = useGatedApps();
+export default function HomeScreen({
+  apps,
+  loaded,
+  onAdd,
+  onSelectApp,
+}: {
+  apps: GatedApp[];
+  loaded: boolean;
+  onAdd: () => void;
+  onSelectApp: (app: GatedApp) => void;
+}) {
+  useCountdownTick();
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>AppGate</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>AppGate</Text>
+        <Pressable style={styles.fab} onPress={onAdd} hitSlop={8}>
+          <Text style={styles.fabText}>+</Text>
+        </Pressable>
+      </View>
       <FlatList
         data={apps}
         keyExtractor={item => item.packageName}
-        renderItem={({ item }) => <Row app={item} />}
+        renderItem={({ item }) => <Row app={item} onPress={() => onSelectApp(item)} />}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {loaded ? 'No apps gated yet. Tap the add button to gate your first app.' : ''}
+            {loaded ? 'No apps gated yet. Tap + to gate your first app.' : ''}
           </Text>
         }
       />
-      <DebugAddButtons add={add} />
       <NativeBridgeStatus />
     </View>
   );
@@ -117,13 +110,32 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0d0d0f',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: '#fff',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+  },
+  fab: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#3a6cf6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '700',
+    lineHeight: 22,
   },
   list: {
     paddingHorizontal: 16,
@@ -176,22 +188,6 @@ const styles = StyleSheet.create({
     color: '#9a9a9e',
     textAlign: 'center',
     marginTop: 40,
-  },
-  debugRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    paddingBottom: 4,
-  },
-  debugButton: {
-    backgroundColor: '#1f1f23',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  debugButtonText: {
-    color: '#9a9a9e',
-    fontSize: 11,
   },
   debug: {
     color: '#5a5a5e',

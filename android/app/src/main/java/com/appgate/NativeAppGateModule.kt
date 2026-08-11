@@ -1,11 +1,17 @@
 package com.appgate
 
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
 import com.appgate.specs.NativeAppGateSpec
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.Arguments
 import java.io.File
+import java.io.FileOutputStream
 
 class NativeAppGateModule(reactContext: ReactApplicationContext) :
     NativeAppGateSpec(reactContext) {
@@ -47,8 +53,59 @@ class NativeAppGateModule(reactContext: ReactApplicationContext) :
     }
 
     override fun getInstalledApps(promise: Promise) {
-        val empty: WritableArray = Arguments.createArray()
-        promise.resolve(empty)
+        // Touches PackageManager for ~150 entries and writes icon files; keep off
+        // the native modules thread's fast path, per §6.
+        Thread {
+            try {
+                val pm = reactApplicationContext.packageManager
+                val ownPackage = reactApplicationContext.packageName
+                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                val resolveInfos = pm.queryIntentActivities(intent, 0)
+                val iconsDir = File(reactApplicationContext.cacheDir, "icons").apply { mkdirs() }
+
+                val result: WritableArray = Arguments.createArray()
+                val seen = HashSet<String>()
+                for (info in resolveInfos) {
+                    val packageName = info.activityInfo.packageName
+                    if (packageName == ownPackage || !seen.add(packageName)) {
+                        continue
+                    }
+                    val appName = info.loadLabel(pm).toString()
+                    val iconFile = File(iconsDir, "$packageName.png")
+                    if (!iconFile.exists()) {
+                        try {
+                            val bitmap = drawableToBitmap(info.loadIcon(pm))
+                            FileOutputStream(iconFile).use { out ->
+                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                            }
+                        } catch (e: Exception) {
+                            // No icon file written; the app is still usable without one.
+                        }
+                    }
+                    val map = Arguments.createMap()
+                    map.putString("packageName", packageName)
+                    map.putString("appName", appName)
+                    map.putString("iconUri", "file://${iconFile.absolutePath}")
+                    result.pushMap(map)
+                }
+                promise.resolve(result)
+            } catch (e: Exception) {
+                promise.reject("E_GET_INSTALLED_APPS", e)
+            }
+        }.start()
+    }
+
+    private fun drawableToBitmap(drawable: Drawable): Bitmap {
+        if (drawable is BitmapDrawable && drawable.bitmap != null) {
+            return drawable.bitmap
+        }
+        val width = if (drawable.intrinsicWidth > 0) drawable.intrinsicWidth else 96
+        val height = if (drawable.intrinsicHeight > 0) drawable.intrinsicHeight else 96
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        drawable.setBounds(0, 0, canvas.width, canvas.height)
+        drawable.draw(canvas)
+        return bitmap
     }
 
     companion object {
