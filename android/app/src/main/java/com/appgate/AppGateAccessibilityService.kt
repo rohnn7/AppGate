@@ -10,12 +10,11 @@ import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Button
 import android.widget.TextView
+import java.io.File
 
 /**
- * Detection (§10.1) + overlay enforcement (§10.2). At this build-order step
- * (§12 step 6) the overlay is wired to a single hardcoded package to prove the
- * WindowManager mechanics — touch swallowing, back consumption, "Go home" —
- * work before real cache-driven mode logic lands in step 7.
+ * Detection (§10.1) + overlay enforcement (§10.2), driven by AppGateConfigCache.
+ * Grace-period bookkeeping for MESSAGE mode lands in build-order step 8.
  */
 class AppGateAccessibilityService : AccessibilityService() {
 
@@ -27,7 +26,13 @@ class AppGateAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        Log.d(TAG, "Service connected")
+        // Populate the cache from disk in case the service is starting after a
+        // reboot, when JS (and therefore loadConfig()) has never run (§4).
+        val configFile = File(filesDir, "appgate_config.json")
+        if (configFile.exists()) {
+            AppGateConfigCache.configJson = configFile.readText()
+        }
+        Log.d(TAG, "Service connected, cache has ${AppGateConfigCache.parsed().size} entries")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -41,16 +46,31 @@ class AppGateAccessibilityService : AccessibilityService() {
             return
         }
         lastForegroundPackage = packageName
-        Log.d(TAG, "Foreground: $packageName")
 
-        // Step 6 stub: hardcoded target proves the overlay mechanics work.
-        // Real cache-driven BLOCK/MESSAGE logic replaces this in step 7.
-        if (packageName == HARDCODED_TEST_PACKAGE) {
-            showOverlay(
-                title = "Blocked",
-                message = "Hardcoded test overlay (build-order step 6). Real block logic lands in step 7.",
-                showContinue = false,
-            )
+        val app = AppGateConfigCache.parsed().find { it.packageName == packageName } ?: return
+        val now = System.currentTimeMillis()
+
+        when (app.mode) {
+            "BLOCK" -> {
+                if (app.blockUntilMillis != null && now < app.blockUntilMillis) {
+                    Log.d(TAG, "Blocking $packageName")
+                    showOverlay(
+                        title = "Blocked",
+                        message = "This app is blocked right now.",
+                        showContinue = false,
+                        packageName = packageName,
+                    )
+                }
+            }
+            "MESSAGE" -> {
+                Log.d(TAG, "Showing message for $packageName")
+                showOverlay(
+                    title = "Wait",
+                    message = app.message ?: "",
+                    showContinue = true,
+                    packageName = packageName,
+                )
+            }
         }
     }
 
@@ -63,7 +83,7 @@ class AppGateAccessibilityService : AccessibilityService() {
         removeOverlay()
     }
 
-    private fun showOverlay(title: String, message: String, showContinue: Boolean) {
+    private fun showOverlay(title: String, message: String, showContinue: Boolean, packageName: String) {
         // Always remove any existing overlay before adding a new one — leaking
         // overlay views is the most common crash source here (§10.2).
         removeOverlay()
@@ -83,7 +103,8 @@ class AppGateAccessibilityService : AccessibilityService() {
         if (showContinue) {
             secondaryButton.visibility = View.VISIBLE
             secondaryButton.setOnClickListener {
-                // Grace-period timestamp wiring lands in step 8.
+                // Grace-period timestamp wiring lands in step 8; for now this
+                // just dismisses the overlay without suppressing the retrigger.
                 removeOverlay()
             }
         } else {
@@ -113,6 +134,5 @@ class AppGateAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "AppGate"
-        private const val HARDCODED_TEST_PACKAGE = "com.instagram.android"
     }
 }
