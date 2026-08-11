@@ -1,24 +1,8 @@
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import NativeAppGate from '../../specs/NativeAppGate';
+import { useGatedApps } from '../hooks/useGatedApps';
 import type { GatedApp } from '../types';
-
-const HARDCODED_APPS: GatedApp[] = [
-  {
-    packageName: 'com.instagram.android',
-    appName: 'Instagram',
-    mode: 'BLOCK',
-    blockUntilMillis: Date.now() + 2 * 60 * 60 * 1000 + 14 * 60 * 1000,
-    createdAt: Date.now(),
-  },
-  {
-    packageName: 'com.application.zomato',
-    appName: 'Zomato',
-    mode: 'MESSAGE',
-    message: 'you have to reduce your weight, get over your taste addiction',
-    createdAt: Date.now(),
-  },
-];
 
 function statusText(app: GatedApp): string {
   if (app.mode === 'MESSAGE') {
@@ -55,12 +39,9 @@ function NativeBridgeStatus() {
 
   useEffect(() => {
     try {
-      const config = NativeAppGate.loadConfig();
       const accessibilityEnabled = NativeAppGate.isAccessibilityEnabled();
       const canOverlay = NativeAppGate.canDrawOverlays();
-      setStatus(
-        `native ok · config=${config} · accessibility=${accessibilityEnabled} · overlay=${canOverlay}`,
-      );
+      setStatus(`native ok · accessibility=${accessibilityEnabled} · overlay=${canOverlay}`);
     } catch (e) {
       setStatus(`native bridge error: ${String(e)}`);
     }
@@ -69,21 +50,63 @@ function NativeBridgeStatus() {
   return <Text style={styles.debug}>{status}</Text>;
 }
 
+// Temporary: stands in for the real app picker + add flow (build-order step 4).
+// Proves saveConfig/loadConfig round-trip through a real file.
+function DebugAddButtons({
+  add,
+}: {
+  add: ReturnType<typeof useGatedApps>['add'];
+}) {
+  return (
+    <View style={styles.debugRow}>
+      <Pressable
+        style={styles.debugButton}
+        onPress={() =>
+          add({
+            packageName: 'com.instagram.android',
+            appName: 'Instagram',
+            mode: 'BLOCK',
+            blockUntilMillis: Date.now() + 3 * 60 * 60 * 1000,
+            createdAt: Date.now(),
+          })
+        }>
+        <Text style={styles.debugButtonText}>+ Instagram (BLOCK 3h)</Text>
+      </Pressable>
+      <Pressable
+        style={styles.debugButton}
+        onPress={() =>
+          add({
+            packageName: 'com.application.zomato',
+            appName: 'Zomato',
+            mode: 'MESSAGE',
+            message: 'you have to reduce your weight, get over your taste addiction',
+            createdAt: Date.now(),
+          })
+        }>
+        <Text style={styles.debugButtonText}>+ Zomato (MESSAGE)</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
+  const { apps, loaded, add } = useGatedApps();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>AppGate</Text>
       <FlatList
-        data={HARDCODED_APPS}
+        data={apps}
         keyExtractor={item => item.packageName}
         renderItem={({ item }) => <Row app={item} />}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <Text style={styles.empty}>
-            No apps gated yet. Tap the add button to gate your first app.
+            {loaded ? 'No apps gated yet. Tap the add button to gate your first app.' : ''}
           </Text>
         }
       />
+      <DebugAddButtons add={add} />
       <NativeBridgeStatus />
     </View>
   );
@@ -153,6 +176,22 @@ const styles = StyleSheet.create({
     color: '#9a9a9e',
     textAlign: 'center',
     marginTop: 40,
+  },
+  debugRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+    paddingBottom: 4,
+  },
+  debugButton: {
+    backgroundColor: '#1f1f23',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  debugButtonText: {
+    color: '#9a9a9e',
+    fontSize: 11,
   },
   debug: {
     color: '#5a5a5e',

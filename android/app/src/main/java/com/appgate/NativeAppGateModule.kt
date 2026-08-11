@@ -5,18 +5,25 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.Arguments
+import java.io.File
 
 class NativeAppGateModule(reactContext: ReactApplicationContext) :
     NativeAppGateSpec(reactContext) {
 
+    private val configFile: File
+        get() = File(reactApplicationContext.filesDir, "appgate_config.json")
+
     override fun getName(): String = NAME
 
-    // Step 2 stub: hardcoded values only, proving the JS <-> Kotlin bridge works.
-    // Real file I/O and cache wiring land in step 3.
-    override fun loadConfig(): String = "[]"
+    override fun loadConfig(): String {
+        val json = if (configFile.exists()) configFile.readText() else "[]"
+        AppGateConfigCache.configJson = json
+        return json
+    }
 
     override fun saveConfig(json: String) {
-        // no-op stub
+        configFile.writeText(json)
+        AppGateConfigCache.configJson = json
     }
 
     override fun isAccessibilityEnabled(): Boolean = false
