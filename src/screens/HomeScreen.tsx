@@ -1,6 +1,5 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 import { AppState, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import NativeAppGate from '../../specs/NativeAppGate';
 import type { GatedApp } from '../types';
 
 function statusText(app: GatedApp): string {
@@ -29,24 +28,6 @@ function Row({ app, onPress }: { app: GatedApp; onPress: () => void }) {
       </View>
     </Pressable>
   );
-}
-
-// Temporary: proves the TurboModule bridge is wired end to end. Replaced by
-// the real setup gate in build-order step 9.
-function NativeBridgeStatus() {
-  const [status, setStatus] = useState('checking native bridge…');
-
-  useEffect(() => {
-    try {
-      const accessibilityEnabled = NativeAppGate.isAccessibilityEnabled();
-      const canOverlay = NativeAppGate.canDrawOverlays();
-      setStatus(`native ok · accessibility=${accessibilityEnabled} · overlay=${canOverlay}`);
-    } catch (e) {
-      setStatus(`native bridge error: ${String(e)}`);
-    }
-  }, []);
-
-  return <Text style={styles.debug}>{status}</Text>;
 }
 
 // Recomputes "Xh Ym left" text on a 30s interval and on app resume, without a
@@ -100,7 +81,6 @@ export default function HomeScreen({
           </Text>
         }
       />
-      <NativeBridgeStatus />
     </View>
   );
 }
@@ -188,11 +168,5 @@ const styles = StyleSheet.create({
     color: '#9a9a9e',
     textAlign: 'center',
     marginTop: 40,
-  },
-  debug: {
-    color: '#5a5a5e',
-    fontSize: 10,
-    textAlign: 'center',
-    paddingVertical: 8,
   },
 });

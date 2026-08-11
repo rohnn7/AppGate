@@ -5,6 +5,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.net.Uri
+import android.provider.Settings
+import android.text.TextUtils
 import com.appgate.specs.NativeAppGateSpec
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
@@ -32,24 +35,53 @@ class NativeAppGateModule(reactContext: ReactApplicationContext) :
         AppGateConfigCache.configJson = json
     }
 
-    override fun isAccessibilityEnabled(): Boolean = false
+    override fun isAccessibilityEnabled(): Boolean {
+        val expected = "${reactApplicationContext.packageName}/${AppGateAccessibilityService::class.java.name}"
+        val enabledServices = Settings.Secure.getString(
+            reactApplicationContext.contentResolver,
+            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+        ) ?: return false
+        val splitter = TextUtils.SimpleStringSplitter(':')
+        splitter.setString(enabledServices)
+        while (splitter.hasNext()) {
+            if (splitter.next().equals(expected, ignoreCase = true)) {
+                return true
+            }
+        }
+        return false
+    }
 
-    override fun canDrawOverlays(): Boolean = false
+    override fun canDrawOverlays(): Boolean = Settings.canDrawOverlays(reactApplicationContext)
 
     override fun openAccessibilitySettings() {
-        // stub, wired up in the setup gate step
+        startSettingsActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
     }
 
     override fun openOverlaySettings() {
-        // stub, wired up in the setup gate step
+        startSettingsActivity(
+            Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${reactApplicationContext.packageName}"),
+            ),
+        )
     }
 
     override fun openBatteryOptimizationSettings() {
-        // stub, wired up in the setup gate step
+        startSettingsActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
     }
 
     override fun openAppInfoSettings() {
-        // stub, wired up in the setup gate step
+        startSettingsActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:${reactApplicationContext.packageName}"),
+            ),
+        )
+    }
+
+    private fun startSettingsActivity(intent: Intent) {
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        reactApplicationContext.startActivity(intent)
     }
 
     override fun getInstalledApps(promise: Promise) {

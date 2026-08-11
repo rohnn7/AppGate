@@ -12,6 +12,7 @@ import AddConfigureScreen from './src/screens/AddConfigureScreen';
 import AppPickerScreen from './src/screens/AppPickerScreen';
 import EditAppSheet from './src/screens/EditAppSheet';
 import HomeScreen from './src/screens/HomeScreen';
+import SetupGateScreen from './src/screens/SetupGateScreen';
 import { useGatedApps } from './src/hooks/useGatedApps';
 import type { GatedApp } from './src/types';
 
@@ -49,6 +50,16 @@ function EditRoute({
 function App() {
   const gatedApps = useGatedApps();
   const [route, setRoute] = useState<Route>({ name: 'home' });
+  const [setupComplete, setSetupComplete] = useState(false);
+
+  if (!setupComplete) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar barStyle="light-content" />
+        <SetupGateScreen onReady={() => setSetupComplete(true)} />
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>
