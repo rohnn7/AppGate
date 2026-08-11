@@ -48,12 +48,18 @@ class AppGateAccessibilityService : AccessibilityService() {
             return
         }
         lastForegroundPackage = packageName
+        Log.d(TAG, "Foreground: $packageName")
 
-        val app = AppGateConfigCache.parsed().find { it.packageName == packageName } ?: return
+        val app = AppGateConfigCache.parsed().find { it.packageName == packageName }
+        if (app == null) {
+            Log.d(TAG, "$packageName not gated (cache has ${AppGateConfigCache.parsed().size} entries)")
+            return
+        }
         val now = System.currentTimeMillis()
 
         when (app.mode) {
             "BLOCK" -> {
+                Log.d(TAG, "$packageName is BLOCK, blockUntilMillis=${app.blockUntilMillis}, now=$now")
                 if (app.blockUntilMillis != null && now < app.blockUntilMillis) {
                     Log.d(TAG, "Blocking $packageName")
                     showOverlay(
@@ -62,10 +68,13 @@ class AppGateAccessibilityService : AccessibilityService() {
                         showContinue = false,
                         packageName = packageName,
                     )
+                } else {
+                    Log.d(TAG, "$packageName block expired or unset, letting it open")
                 }
             }
             "MESSAGE" -> {
                 val grace = graceUntil[packageName] ?: 0L
+                Log.d(TAG, "$packageName is MESSAGE, grace=$grace, now=$now")
                 if (now > grace) {
                     Log.d(TAG, "Showing message for $packageName")
                     showOverlay(
@@ -76,6 +85,7 @@ class AppGateAccessibilityService : AccessibilityService() {
                     )
                 }
             }
+            else -> Log.w(TAG, "$packageName has unrecognized mode: '${app.mode}'")
         }
     }
 
@@ -126,9 +136,16 @@ class AppGateAccessibilityService : AccessibilityService() {
             PixelFormat.OPAQUE,
         )
 
-        windowManager.addView(view, params)
-        view.requestFocus()
-        overlayView = view
+        try {
+            windowManager.addView(view, params)
+            view.requestFocus()
+            overlayView = view
+        } catch (e: Exception) {
+            // Most likely missing SYSTEM_ALERT_WINDOW / "display over other
+            // apps" not actually granted despite canDrawOverlays() — surface
+            // it loudly instead of failing silently.
+            Log.e(TAG, "Failed to add overlay for $packageName", e)
+        }
     }
 
     private fun removeOverlay() {

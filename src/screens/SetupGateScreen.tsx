@@ -25,7 +25,10 @@ function PermissionRow({
       </View>
       <Text style={styles.rowDescription}>{description}</Text>
       {!granted && (
-        <Pressable style={styles.button} onPress={onPress}>
+        <Pressable
+          style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+          android_ripple={{ color: '#2c56cc' }}
+          onPress={onPress}>
           <Text style={styles.buttonText}>{actionLabel}</Text>
         </Pressable>
       )}
@@ -48,7 +51,10 @@ function InfoRow({
     <View style={styles.row}>
       <Text style={styles.rowTitle}>{title}</Text>
       <Text style={styles.rowDescription}>{description}</Text>
-      <Pressable style={styles.button} onPress={onPress}>
+      <Pressable
+        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        android_ripple={{ color: '#2c56cc' }}
+        onPress={onPress}>
         <Text style={styles.buttonText}>{actionLabel}</Text>
       </Pressable>
     </View>
@@ -193,6 +199,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     marginTop: 12,
+  },
+  buttonPressed: {
+    backgroundColor: '#2c56cc',
   },
   buttonText: {
     color: '#fff',

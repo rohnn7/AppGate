@@ -5,8 +5,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { StatusBar } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar, StyleSheet } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import type { InstalledApp } from './specs/NativeAppGate';
 import AddConfigureScreen from './src/screens/AddConfigureScreen';
 import AppPickerScreen from './src/screens/AppPickerScreen';
@@ -56,7 +56,9 @@ function App() {
     return (
       <SafeAreaProvider>
         <StatusBar barStyle="light-content" />
-        <SetupGateScreen onReady={() => setSetupComplete(true)} />
+        <SafeAreaView style={styles.safeArea} edges={['top']}>
+          <SetupGateScreen onReady={() => setSetupComplete(true)} />
+        </SafeAreaView>
       </SafeAreaProvider>
     );
   }
@@ -64,41 +66,50 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle="light-content" />
-      {route.name === 'home' && (
-        <HomeScreen
-          apps={gatedApps.apps}
-          loaded={gatedApps.loaded}
-          onAdd={() => setRoute({ name: 'picker' })}
-          onSelectApp={app => setRoute({ name: 'edit', packageName: app.packageName })}
-        />
-      )}
-      {route.name === 'picker' && (
-        <AppPickerScreen
-          excludePackageNames={new Set(gatedApps.apps.map(a => a.packageName))}
-          onCancel={() => setRoute({ name: 'home' })}
-          onSelect={app => setRoute({ name: 'configure', app })}
-        />
-      )}
-      {route.name === 'configure' && (
-        <AddConfigureScreen
-          app={route.app}
-          onCancel={() => setRoute({ name: 'home' })}
-          onSave={(gatedApp: GatedApp) => {
-            gatedApps.add(gatedApp);
-            setRoute({ name: 'home' });
-          }}
-        />
-      )}
-      {route.name === 'edit' && (
-        <EditRoute
-          packageName={route.packageName}
-          apps={gatedApps.apps}
-          actions={gatedApps}
-          onClose={() => setRoute({ name: 'home' })}
-        />
-      )}
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {route.name === 'home' && (
+          <HomeScreen
+            apps={gatedApps.apps}
+            loaded={gatedApps.loaded}
+            onAdd={() => setRoute({ name: 'picker' })}
+            onSelectApp={app => setRoute({ name: 'edit', packageName: app.packageName })}
+          />
+        )}
+        {route.name === 'picker' && (
+          <AppPickerScreen
+            excludePackageNames={new Set(gatedApps.apps.map(a => a.packageName))}
+            onCancel={() => setRoute({ name: 'home' })}
+            onSelect={app => setRoute({ name: 'configure', app })}
+          />
+        )}
+        {route.name === 'configure' && (
+          <AddConfigureScreen
+            app={route.app}
+            onCancel={() => setRoute({ name: 'home' })}
+            onSave={(gatedApp: GatedApp) => {
+              gatedApps.add(gatedApp);
+              setRoute({ name: 'home' });
+            }}
+          />
+        )}
+        {route.name === 'edit' && (
+          <EditRoute
+            packageName={route.packageName}
+            apps={gatedApps.apps}
+            actions={gatedApps}
+            onClose={() => setRoute({ name: 'home' })}
+          />
+        )}
+      </SafeAreaView>
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#0d0d0f',
+  },
+});
 
 export default App;

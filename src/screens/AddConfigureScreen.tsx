@@ -38,15 +38,24 @@ export default function AddConfigureScreen({
       <View style={styles.container}>
         <Text style={styles.title}>{app.appName}</Text>
         <Text style={styles.subtitle}>Choose what happens when you open it</Text>
-        <Pressable style={styles.card} onPress={() => setMode('BLOCK')}>
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+          android_ripple={{ color: '#333' }}
+          onPress={() => setMode('BLOCK')}>
           <Text style={styles.cardTitle}>Block completely</Text>
           <Text style={styles.cardSubtitle}>No way in until a timer expires</Text>
         </Pressable>
-        <Pressable style={styles.card} onPress={() => setMode('MESSAGE')}>
+        <Pressable
+          style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+          android_ripple={{ color: '#333' }}
+          onPress={() => setMode('MESSAGE')}>
           <Text style={styles.cardTitle}>Show me a message</Text>
           <Text style={styles.cardSubtitle}>A reminder, then you can continue</Text>
         </Pressable>
-        <Pressable onPress={onCancel} style={styles.cancelWrap}>
+        <Pressable
+          onPress={onCancel}
+          style={({ pressed }) => [styles.cancelWrap, pressed && styles.pressedText]}
+          android_ripple={{ color: '#333' }}>
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
       </View>
@@ -63,7 +72,8 @@ export default function AddConfigureScreen({
           {DURATION_CHIPS.map(chip => (
             <Pressable
               key={chip.label}
-              style={styles.chip}
+              style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+              android_ripple={{ color: '#3a3a3e' }}
               onPress={() => {
                 setCustomHours('');
                 setDurationMillis(chip.getMillis());
@@ -88,7 +98,12 @@ export default function AddConfigureScreen({
           <Text style={styles.customLabel}>hours</Text>
         </View>
         <Pressable
-          style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
+          style={({ pressed }) => [
+            styles.saveButton,
+            !canSave && styles.saveButtonDisabled,
+            pressed && canSave && styles.saveButtonPressed,
+          ]}
+          android_ripple={canSave ? { color: '#2c56cc' } : undefined}
           disabled={!canSave}
           onPress={() => {
             if (durationMillis === null) {
@@ -104,7 +119,10 @@ export default function AddConfigureScreen({
           }}>
           <Text style={styles.saveButtonText}>Save</Text>
         </Pressable>
-        <Pressable onPress={() => setMode(null)} style={styles.cancelWrap}>
+        <Pressable
+          onPress={() => setMode(null)}
+          style={({ pressed }) => [styles.cancelWrap, pressed && styles.pressedText]}
+          android_ripple={{ color: '#333' }}>
           <Text style={styles.cancel}>Back</Text>
         </Pressable>
       </View>
@@ -136,7 +154,12 @@ export default function AddConfigureScreen({
         </View>
       </View>
       <Pressable
-        style={[styles.saveButton, !trimmed && styles.saveButtonDisabled]}
+        style={({ pressed }) => [
+          styles.saveButton,
+          !trimmed && styles.saveButtonDisabled,
+          pressed && !!trimmed && styles.saveButtonPressed,
+        ]}
+        android_ripple={trimmed ? { color: '#2c56cc' } : undefined}
         disabled={!trimmed}
         onPress={() =>
           onSave({
@@ -149,7 +172,10 @@ export default function AddConfigureScreen({
         }>
         <Text style={styles.saveButtonText}>Save</Text>
       </Pressable>
-      <Pressable onPress={() => setMode(null)} style={styles.cancelWrap}>
+      <Pressable
+        onPress={() => setMode(null)}
+        style={({ pressed }) => [styles.cancelWrap, pressed && styles.pressedText]}
+        android_ripple={{ color: '#333' }}>
         <Text style={styles.cancel}>Back</Text>
       </Pressable>
     </View>
@@ -180,6 +206,9 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
   },
+  cardPressed: {
+    backgroundColor: '#28282d',
+  },
   cardTitle: {
     color: '#fff',
     fontSize: 16,
@@ -200,6 +229,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+  },
+  chipPressed: {
+    backgroundColor: '#2c2c30',
   },
   chipText: {
     color: '#fff',
@@ -265,6 +297,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
   },
+  saveButtonPressed: {
+    backgroundColor: '#2c56cc',
+  },
   saveButtonDisabled: {
     opacity: 0.4,
   },
@@ -276,9 +311,13 @@ const styles = StyleSheet.create({
   cancelWrap: {
     alignItems: 'center',
     marginTop: 16,
+    paddingVertical: 6,
   },
   cancel: {
     color: '#9a9a9e',
     fontSize: 14,
+  },
+  pressedText: {
+    opacity: 0.5,
   },
 });

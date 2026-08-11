@@ -26,7 +26,11 @@ export default function EditAppSheet({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={onClose} hitSlop={12}>
+        <Pressable
+          onPress={onClose}
+          hitSlop={12}
+          android_ripple={{ color: '#333', borderless: true }}
+          style={({ pressed }) => pressed && styles.pressedText}>
           <Text style={styles.headerAction}>Close</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{app.appName}</Text>
@@ -35,12 +39,22 @@ export default function EditAppSheet({
 
       <View style={styles.modeRow}>
         <Pressable
-          style={[styles.modeButton, app.mode === 'BLOCK' && styles.modeButtonActive]}
+          style={({ pressed }) => [
+            styles.modeButton,
+            app.mode === 'BLOCK' && styles.modeButtonActive,
+            pressed && styles.modeButtonPressed,
+          ]}
+          android_ripple={{ color: '#2c56cc' }}
           onPress={() => actions.switchMode(app.packageName, 'BLOCK')}>
           <Text style={styles.modeButtonText}>Block</Text>
         </Pressable>
         <Pressable
-          style={[styles.modeButton, app.mode === 'MESSAGE' && styles.modeButtonActive]}
+          style={({ pressed }) => [
+            styles.modeButton,
+            app.mode === 'MESSAGE' && styles.modeButtonActive,
+            pressed && styles.modeButtonPressed,
+          ]}
+          android_ripple={{ color: '#2c56cc' }}
           onPress={() => actions.switchMode(app.packageName, 'MESSAGE')}>
           <Text style={styles.modeButtonText}>Message</Text>
         </Pressable>
@@ -51,7 +65,8 @@ export default function EditAppSheet({
           {REARM_CHIPS.map(chip => (
             <Pressable
               key={chip.label}
-              style={styles.chip}
+              style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+              android_ripple={{ color: '#3a3a3e' }}
               onPress={() => actions.rearm(app.packageName, chip.millis)}>
               <Text style={styles.chipText}>Re-arm {chip.label}</Text>
             </Pressable>
@@ -69,7 +84,8 @@ export default function EditAppSheet({
             placeholderTextColor="#6a6a6e"
           />
           <Pressable
-            style={styles.saveButton}
+            style={({ pressed }) => [styles.saveButton, pressed && styles.saveButtonPressed]}
+            android_ripple={{ color: '#2c56cc' }}
             onPress={() => actions.update({ ...app, message: message.trim() })}>
             <Text style={styles.saveButtonText}>Save message</Text>
           </Pressable>
@@ -77,7 +93,8 @@ export default function EditAppSheet({
       )}
 
       <Pressable
-        style={styles.removeButton}
+        style={({ pressed }) => [styles.removeButton, pressed && styles.removeButtonPressed]}
+        android_ripple={{ color: '#5a2a2a' }}
         onPress={() => {
           actions.remove(app.packageName);
           onClose();
@@ -128,6 +145,9 @@ const styles = StyleSheet.create({
   modeButtonActive: {
     backgroundColor: '#3a6cf6',
   },
+  modeButtonPressed: {
+    backgroundColor: '#28282d',
+  },
   modeButtonText: {
     color: '#fff',
     fontWeight: '600',
@@ -142,6 +162,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+  },
+  chipPressed: {
+    backgroundColor: '#2c2c30',
   },
   chipText: {
     color: '#fff',
@@ -162,6 +185,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
   },
+  saveButtonPressed: {
+    backgroundColor: '#2c56cc',
+  },
   saveButtonText: {
     color: '#fff',
     fontWeight: '600',
@@ -171,9 +197,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
   },
+  removeButtonPressed: {
+    backgroundColor: '#2a1a1a',
+    borderRadius: 8,
+  },
   removeButtonText: {
     color: '#ff6b6b',
     fontSize: 15,
     fontWeight: '600',
+  },
+  pressedText: {
+    opacity: 0.5,
   },
 });

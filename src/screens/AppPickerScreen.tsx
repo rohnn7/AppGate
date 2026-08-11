@@ -46,7 +46,11 @@ export default function AppPickerScreen({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Pressable onPress={onCancel} hitSlop={12}>
+        <Pressable
+          onPress={onCancel}
+          hitSlop={12}
+          android_ripple={{ color: '#333', borderless: true }}
+          style={({ pressed }) => pressed && styles.pressedText}>
           <Text style={styles.headerAction}>Cancel</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Add app</Text>
@@ -67,7 +71,10 @@ export default function AppPickerScreen({
           data={filtered}
           keyExtractor={item => item.packageName}
           renderItem={({ item }) => (
-            <Pressable style={styles.row} onPress={() => onSelect(item)}>
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              android_ripple={{ color: '#333' }}
+              onPress={() => onSelect(item)}>
               <Image source={{ uri: item.iconUri }} style={styles.icon} />
               <Text style={styles.appName}>{item.appName}</Text>
             </Pressable>
@@ -126,8 +133,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#333',
+  },
+  rowPressed: {
+    backgroundColor: '#1a1a1d',
+  },
+  pressedText: {
+    opacity: 0.5,
   },
   icon: {
     width: 36,

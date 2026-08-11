@@ -17,7 +17,10 @@ function statusText(app: GatedApp): string {
 
 function Row({ app, onPress }: { app: GatedApp; onPress: () => void }) {
   return (
-    <Pressable style={styles.row} onPress={onPress}>
+    <Pressable
+      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      android_ripple={{ color: '#333' }}
+      onPress={onPress}>
       <View style={styles.iconPlaceholder} />
       <View style={styles.rowText}>
         <Text style={styles.appName}>{app.appName}</Text>
@@ -66,7 +69,11 @@ export default function HomeScreen({
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <Text style={styles.title}>AppGate</Text>
-        <Pressable style={styles.fab} onPress={onAdd} hitSlop={8}>
+        <Pressable
+          style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+          android_ripple={{ color: '#5a86ff', borderless: true }}
+          onPress={onAdd}
+          hitSlop={8}>
           <Text style={styles.fabText}>+</Text>
         </Pressable>
       </View>
@@ -111,6 +118,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  fabPressed: {
+    backgroundColor: '#2c56cc',
+  },
   fabText: {
     color: '#fff',
     fontSize: 20,
@@ -125,8 +135,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
+    paddingHorizontal: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#333',
+  },
+  rowPressed: {
+    backgroundColor: '#1a1a1d',
   },
   iconPlaceholder: {
     width: 40,
