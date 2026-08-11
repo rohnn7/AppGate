@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
+import NativeAppGate from '../../specs/NativeAppGate';
 import type { GatedApp } from '../types';
 
 const HARDCODED_APPS: GatedApp[] = [
@@ -46,6 +48,27 @@ function Row({ app }: { app: GatedApp }) {
   );
 }
 
+// Temporary: proves the TurboModule bridge is wired end to end. Replaced by
+// the real setup gate in build-order step 9.
+function NativeBridgeStatus() {
+  const [status, setStatus] = useState('checking native bridge…');
+
+  useEffect(() => {
+    try {
+      const config = NativeAppGate.loadConfig();
+      const accessibilityEnabled = NativeAppGate.isAccessibilityEnabled();
+      const canOverlay = NativeAppGate.canDrawOverlays();
+      setStatus(
+        `native ok · config=${config} · accessibility=${accessibilityEnabled} · overlay=${canOverlay}`,
+      );
+    } catch (e) {
+      setStatus(`native bridge error: ${String(e)}`);
+    }
+  }, []);
+
+  return <Text style={styles.debug}>{status}</Text>;
+}
+
 export default function HomeScreen() {
   return (
     <View style={styles.container}>
@@ -61,6 +84,7 @@ export default function HomeScreen() {
           </Text>
         }
       />
+      <NativeBridgeStatus />
     </View>
   );
 }
@@ -129,5 +153,11 @@ const styles = StyleSheet.create({
     color: '#9a9a9e',
     textAlign: 'center',
     marginTop: 40,
+  },
+  debug: {
+    color: '#5a5a5e',
+    fontSize: 10,
+    textAlign: 'center',
+    paddingVertical: 8,
   },
 });
