@@ -14,12 +14,14 @@ import java.io.File
 
 /**
  * Detection (§10.1) + overlay enforcement (§10.2), driven by AppGateConfigCache.
- * Grace-period bookkeeping for MESSAGE mode lands in build-order step 8.
+ * graceUntil is deliberately in-memory only, native-side, and resets if the
+ * service restarts (§3.2) — it never crosses to JS and is never persisted.
  */
 class AppGateAccessibilityService : AccessibilityService() {
 
     private var lastForegroundPackage: String? = null
     private var overlayView: View? = null
+    private val graceUntil = mutableMapOf<String, Long>()
 
     private val windowManager: WindowManager
         get() = getSystemService(WINDOW_SERVICE) as WindowManager
@@ -63,13 +65,16 @@ class AppGateAccessibilityService : AccessibilityService() {
                 }
             }
             "MESSAGE" -> {
-                Log.d(TAG, "Showing message for $packageName")
-                showOverlay(
-                    title = "Wait",
-                    message = app.message ?: "",
-                    showContinue = true,
-                    packageName = packageName,
-                )
+                val grace = graceUntil[packageName] ?: 0L
+                if (now > grace) {
+                    Log.d(TAG, "Showing message for $packageName")
+                    showOverlay(
+                        title = "Wait",
+                        message = app.message ?: "",
+                        showContinue = true,
+                        packageName = packageName,
+                    )
+                }
             }
         }
     }
@@ -103,8 +108,7 @@ class AppGateAccessibilityService : AccessibilityService() {
         if (showContinue) {
             secondaryButton.visibility = View.VISIBLE
             secondaryButton.setOnClickListener {
-                // Grace-period timestamp wiring lands in step 8; for now this
-                // just dismisses the overlay without suppressing the retrigger.
+                graceUntil[packageName] = System.currentTimeMillis() + GRACE_PERIOD_MILLIS
                 removeOverlay()
             }
         } else {
@@ -134,5 +138,6 @@ class AppGateAccessibilityService : AccessibilityService() {
 
     companion object {
         private const val TAG = "AppGate"
+        private const val GRACE_PERIOD_MILLIS = 5 * 60 * 1000L
     }
 }
