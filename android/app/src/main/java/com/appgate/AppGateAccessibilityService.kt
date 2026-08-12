@@ -1,6 +1,7 @@
 package com.appgate
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.PixelFormat
 import android.util.Log
 import android.view.KeyEvent
@@ -28,6 +29,19 @@ class AppGateAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+
+        // Some OEM skins (observed on MIUI) don't reliably apply the
+        // accessibility_service_config.xml meta-data — dumpsys accessibility
+        // showed eventTypes= empty despite the manifest declaration, so no
+        // events were ever delivered. Set it programmatically as well so this
+        // doesn't depend on the manifest path working.
+        serviceInfo = AccessibilityServiceInfo().apply {
+            eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+            notificationTimeout = 100
+            flags = AccessibilityServiceInfo.DEFAULT
+        }
+
         // Populate the cache from disk in case the service is starting after a
         // reboot, when JS (and therefore loadConfig()) has never run (§4).
         val configFile = File(filesDir, "appgate_config.json")
