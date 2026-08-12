@@ -1,11 +1,15 @@
 package com.appgate
 
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import android.text.TextUtils
 import com.appgate.specs.NativeAppGateSpec
@@ -22,6 +26,9 @@ class NativeAppGateModule(reactContext: ReactApplicationContext) :
     private val configFile: File
         get() = File(reactApplicationContext.filesDir, "appgate_config.json")
 
+    private val setupAckFile: File
+        get() = File(reactApplicationContext.filesDir, "appgate_setup_ack.txt")
+
     override fun getName(): String = NAME
 
     override fun loadConfig(): String {
@@ -33,6 +40,13 @@ class NativeAppGateModule(reactContext: ReactApplicationContext) :
     override fun saveConfig(json: String) {
         configFile.writeText(json)
         AppGateConfigCache.configJson = json
+    }
+
+    override fun loadSetupAcknowledged(): Boolean =
+        setupAckFile.exists() && setupAckFile.readText().trim() == "true"
+
+    override fun saveSetupAcknowledged(acknowledged: Boolean) {
+        setupAckFile.writeText(acknowledged.toString())
     }
 
     override fun isAccessibilityEnabled(): Boolean {
@@ -52,6 +66,13 @@ class NativeAppGateModule(reactContext: ReactApplicationContext) :
     }
 
     override fun canDrawOverlays(): Boolean = Settings.canDrawOverlays(reactApplicationContext)
+
+    override fun isBatteryOptimizationIgnored(): Boolean {
+        val powerManager = reactApplicationContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+        return powerManager.isIgnoringBatteryOptimizations(reactApplicationContext.packageName)
+    }
+
+    override fun getManufacturer(): String = Build.MANUFACTURER
 
     override fun openAccessibilitySettings() {
         startSettingsActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -77,6 +98,41 @@ class NativeAppGateModule(reactContext: ReactApplicationContext) :
                 Uri.parse("package:${reactApplicationContext.packageName}"),
             ),
         )
+    }
+
+    override fun openAutostartSettings() {
+        // OEM autostart management has no public API — these are commonly
+        // documented component names per manufacturer, tried best-effort.
+        // Only Xiaomi/MIUI has been confirmed working on a real device;
+        // others fall back to the app info screen if the activity isn't found.
+        val candidates: List<Pair<String, String>> = when (Build.MANUFACTURER.lowercase()) {
+            "xiaomi" -> listOf(
+                "com.miui.securitycenter" to "com.miui.permcenter.autostart.AutoStartManagementActivity",
+            )
+            "vivo" -> listOf(
+                "com.vivo.permissionmanager" to "com.vivo.permissionmanager.activity.BgStartUpManagerActivity",
+                "com.iqoo.secure" to "com.iqoo.secure.ui.phoneoptimize.AddWhiteListActivity",
+            )
+            "oppo", "realme" -> listOf(
+                "com.coloros.safecenter" to "com.coloros.safecenter.permission.startup.StartupAppListActivity",
+                "com.oppo.safe" to "com.oppo.safe.permission.startup.StartupAppListActivity",
+            )
+            else -> emptyList()
+        }
+
+        for ((pkg, cls) in candidates) {
+            try {
+                val intent = Intent().apply {
+                    component = ComponentName(pkg, cls)
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                reactApplicationContext.startActivity(intent)
+                return
+            } catch (e: Exception) {
+                // Try the next candidate.
+            }
+        }
+        openAppInfoSettings()
     }
 
     private fun startSettingsActivity(intent: Intent) {

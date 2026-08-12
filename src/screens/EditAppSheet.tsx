@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { useGatedApps } from '../hooks/useGatedApps';
 import type { GatedApp } from '../types';
@@ -12,6 +12,13 @@ const REARM_CHIPS = [
 
 type GatedAppActions = Pick<ReturnType<typeof useGatedApps>, 'update' | 'remove' | 'rearm' | 'switchMode'>;
 
+function remainingText(blockUntilMillis: number): string {
+  const remaining = blockUntilMillis - Date.now();
+  const hours = Math.floor(remaining / (60 * 60 * 1000));
+  const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
+  return `${hours}h ${minutes}m left`;
+}
+
 export default function EditAppSheet({
   app,
   actions,
@@ -22,6 +29,21 @@ export default function EditAppSheet({
   onClose: () => void;
 }) {
   const [message, setMessage] = useState(app.message ?? '');
+  const [, tick] = useReducer(x => x + 1, 0);
+
+  // Keep the lock state and "Xh Ym left" text fresh while the sheet is open,
+  // in case a block expires while the user is looking at it.
+  useEffect(() => {
+    const interval = setInterval(tick, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Anti-bypass: while a BLOCK is actively counting down, neither switching
+  // away from BLOCK nor removing the entry is allowed — otherwise the whole
+  // feature is defeated by a two-tap edit. Re-arming (extending) is still
+  // allowed since it only tightens the block, never weakens it.
+  const isActiveBlock =
+    app.mode === 'BLOCK' && app.blockUntilMillis != null && app.blockUntilMillis > Date.now();
 
   return (
     <View style={styles.container}>
@@ -49,12 +71,14 @@ export default function EditAppSheet({
           <Text style={styles.modeButtonText}>Block</Text>
         </Pressable>
         <Pressable
+          disabled={isActiveBlock}
           style={({ pressed }) => [
             styles.modeButton,
             app.mode === 'MESSAGE' && styles.modeButtonActive,
-            pressed && styles.modeButtonPressed,
+            isActiveBlock && styles.modeButtonDisabled,
+            pressed && !isActiveBlock && styles.modeButtonPressed,
           ]}
-          android_ripple={{ color: '#2c56cc' }}
+          android_ripple={isActiveBlock ? undefined : { color: '#2c56cc' }}
           onPress={() => actions.switchMode(app.packageName, 'MESSAGE')}>
           <Text style={styles.modeButtonText}>Message</Text>
         </Pressable>
@@ -92,15 +116,23 @@ export default function EditAppSheet({
         </>
       )}
 
-      <Pressable
-        style={({ pressed }) => [styles.removeButton, pressed && styles.removeButtonPressed]}
-        android_ripple={{ color: '#5a2a2a' }}
-        onPress={() => {
-          actions.remove(app.packageName);
-          onClose();
-        }}>
-        <Text style={styles.removeButtonText}>Remove</Text>
-      </Pressable>
+      {isActiveBlock ? (
+        <View style={styles.lockedNotice}>
+          <Text style={styles.lockedNoticeText}>
+            🔒 Locked until this block expires — {remainingText(app.blockUntilMillis as number)}
+          </Text>
+        </View>
+      ) : (
+        <Pressable
+          style={({ pressed }) => [styles.removeButton, pressed && styles.removeButtonPressed]}
+          android_ripple={{ color: '#5a2a2a' }}
+          onPress={() => {
+            actions.remove(app.packageName);
+            onClose();
+          }}>
+          <Text style={styles.removeButtonText}>Remove</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -147,6 +179,9 @@ const styles = StyleSheet.create({
   },
   modeButtonPressed: {
     backgroundColor: '#28282d',
+  },
+  modeButtonDisabled: {
+    opacity: 0.35,
   },
   modeButtonText: {
     color: '#fff',
@@ -205,6 +240,19 @@ const styles = StyleSheet.create({
     color: '#ff6b6b',
     fontSize: 15,
     fontWeight: '600',
+  },
+  lockedNotice: {
+    marginTop: 32,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#1f1f23',
+    borderRadius: 8,
+  },
+  lockedNoticeText: {
+    color: '#9a9a9e',
+    fontSize: 13,
+    textAlign: 'center',
   },
   pressedText: {
     opacity: 0.5,

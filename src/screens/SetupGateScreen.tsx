@@ -61,13 +61,61 @@ function InfoRow({
   );
 }
 
+// Autostart has no public API to verify — self-certified via a checkbox the
+// user must tick after actually visiting the OEM screen, persisted so they
+// don't have to re-confirm on every launch.
+function AutostartRow({
+  acknowledged,
+  onAcknowledge,
+}: {
+  acknowledged: boolean;
+  onAcknowledge: () => void;
+}) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowHeader}>
+        <Text style={styles.rowTitle}>Autostart / "don't kill my app"</Text>
+        <Text
+          style={[styles.status, acknowledged ? styles.statusGranted : styles.statusMissing]}>
+          {acknowledged ? 'Confirmed' : 'Needed'}
+        </Text>
+      </View>
+      <Text style={styles.rowDescription}>
+        On Xiaomi, Vivo, Oppo, and Realme phones, the accessibility service gets silently killed
+        in the background unless autostart is enabled for AppGate. There's no way for the app to
+        check this itself — open the screen below, enable autostart for AppGate, then confirm it
+        below.
+      </Text>
+      <Pressable
+        style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}
+        android_ripple={{ color: '#2c56cc' }}
+        onPress={() => NativeAppGate.openAutostartSettings()}>
+        <Text style={styles.buttonText}>Open autostart settings</Text>
+      </Pressable>
+      {!acknowledged && (
+        <Pressable
+          style={({ pressed }) => [styles.checkboxRow, pressed && styles.pressedText]}
+          android_ripple={{ color: '#333' }}
+          onPress={onAcknowledge}>
+          <View style={styles.checkbox} />
+          <Text style={styles.checkboxLabel}>I've enabled autostart for AppGate</Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
 export default function SetupGateScreen({ onReady }: { onReady: () => void }) {
   const [accessibilityEnabled, setAccessibilityEnabled] = useState(false);
   const [canDrawOverlays, setCanDrawOverlays] = useState(false);
+  const [batteryOptimizationIgnored, setBatteryOptimizationIgnored] = useState(false);
+  const [autostartAcknowledged, setAutostartAcknowledged] = useState(false);
 
   const recheck = useCallback(() => {
     setAccessibilityEnabled(NativeAppGate.isAccessibilityEnabled());
     setCanDrawOverlays(NativeAppGate.canDrawOverlays());
+    setBatteryOptimizationIgnored(NativeAppGate.isBatteryOptimizationIgnored());
+    setAutostartAcknowledged(NativeAppGate.loadSetupAcknowledged());
   }, []);
 
   // The user grants these by leaving the app, so re-check whenever they come
@@ -82,7 +130,8 @@ export default function SetupGateScreen({ onReady }: { onReady: () => void }) {
     return () => subscription.remove();
   }, [recheck]);
 
-  const ready = accessibilityEnabled && canDrawOverlays;
+  const ready =
+    accessibilityEnabled && canDrawOverlays && batteryOptimizationIgnored && autostartAcknowledged;
 
   useEffect(() => {
     if (ready) {
@@ -94,7 +143,7 @@ export default function SetupGateScreen({ onReady }: { onReady: () => void }) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Set up AppGate</Text>
       <Text style={styles.subtitle}>
-        Both permissions below are required before AppGate can block or interrupt anything.
+        Every item below is required before AppGate can reliably block or interrupt anything.
       </Text>
 
       <PermissionRow
@@ -111,15 +160,19 @@ export default function SetupGateScreen({ onReady }: { onReady: () => void }) {
         actionLabel="Open overlay settings"
         onPress={() => NativeAppGate.openOverlaySettings()}
       />
-      <InfoRow
+      <PermissionRow
         title="Battery optimisation"
-        description={
-          'On some phones (Xiaomi, Vivo, Oppo, Realme) the accessibility service gets killed ' +
-          'in the background unless you disable battery optimisation and enable autostart for ' +
-          'AppGate, per device, in system settings.'
-        }
+        description="Without this, Android may pause AppGate's detection in the background."
+        granted={batteryOptimizationIgnored}
         actionLabel="Open battery settings"
         onPress={() => NativeAppGate.openBatteryOptimizationSettings()}
+      />
+      <AutostartRow
+        acknowledged={autostartAcknowledged}
+        onAcknowledge={() => {
+          NativeAppGate.saveSetupAcknowledged(true);
+          setAutostartAcknowledged(true);
+        }}
       />
       <InfoRow
         title="Accessibility toggle greyed out?"
@@ -207,5 +260,26 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 14,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#7aa2ff',
+  },
+  checkboxLabel: {
+    color: '#fff',
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  pressedText: {
+    opacity: 0.6,
   },
 });

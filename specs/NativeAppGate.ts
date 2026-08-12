@@ -12,13 +12,20 @@ export interface Spec extends TurboModule {
   loadConfig(): string; // JSON string, "[]" if absent
   saveConfig(json: string): void; // writes file + refreshes native cache
 
+  // one-time setup acknowledgement (OEM autostart, self-certified — see setup gate)
+  loadSetupAcknowledged(): boolean;
+  saveSetupAcknowledged(acknowledged: boolean): void;
+
   // permissions
   isAccessibilityEnabled(): boolean;
   canDrawOverlays(): boolean;
+  isBatteryOptimizationIgnored(): boolean;
   openAccessibilitySettings(): void;
   openOverlaySettings(): void;
   openBatteryOptimizationSettings(): void;
   openAppInfoSettings(): void; // for the restricted-settings fix, trap 6
+  openAutostartSettings(): void; // OEM-specific (MIUI confirmed, others best-effort)
+  getManufacturer(): string; // Build.MANUFACTURER, to tailor autostart guidance
 
   // apps
   getInstalledApps(): Promise<InstalledApp[]>;
