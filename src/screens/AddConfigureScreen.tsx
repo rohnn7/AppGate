@@ -146,7 +146,9 @@ export default function AddConfigureScreen({
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>Preview</Text>
         <View style={styles.previewOverlay}>
-          <Text style={styles.previewMessage}>{trimmed || 'Your message will appear here'}</Text>
+          <View style={styles.previewMessageBox}>
+            <Text style={styles.previewMessage}>{trimmed || 'Your message will appear here'}</Text>
+          </View>
           <View style={styles.previewButtons}>
             <Text style={styles.previewButtonText}>Go back</Text>
             <Text style={styles.previewButtonText}>Continue anyway</Text>
@@ -276,11 +278,21 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
   },
+  previewMessageBox: {
+    backgroundColor: '#3D2600',
+    borderColor: '#FFB300',
+    borderWidth: 2,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    alignSelf: 'stretch',
+  },
   previewMessage: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 18,
+    fontWeight: '700',
     textAlign: 'center',
-    marginBottom: 16,
+    lineHeight: 24,
   },
   previewButtons: {
     flexDirection: 'row',
